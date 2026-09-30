@@ -1,6 +1,7 @@
 import { strToU8, zipSync } from 'fflate';
 import { exifInstant, inspectJpeg, repairJpeg, sha256, validExifDate, validOffset, type JpegInfo } from './jpeg';
 import { reports } from './reports';
+import { t, type Locale } from './i18n';
 
 export const LIMITS = { files: 200, totalBytes: 64 * 1024 * 1024, jpegBytes: 12 * 1024 * 1024, jsonBytes: 1024 * 1024 };
 export type Input = { path: string; file: Blob };
@@ -43,7 +44,9 @@ function timestamp(value: unknown): number | null {
   return n;
 }
 export function parseSidecar(raw: string): Sidecar {
-  const obj: unknown = JSON.parse(raw);
+  let obj: unknown;
+  try { obj = JSON.parse(raw); }
+  catch { throw new Error('Malformed JSON or invalid UTF-8 sidecar.'); }
   // JSON.parse keeps the last duplicate object key. Reject hidden competing
   // metadata sources before interpreting the parsed object.
   const scopes: { object: boolean; keyNext: boolean; keys: Set<string> }[] = [];
@@ -104,7 +107,10 @@ export async function inventory(inputs: Input[], progress: Progress = () => {}):
       const bytes = new Uint8Array(await input.file.arrayBuffer());
       entry.sourceHash = await sha256(bytes);
       if (fileKind === 'json') {
-        entry.sidecar = parseSidecar(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); entry.status = 'orphan'; entry.note = 'No selected JPEG matches this sidecar.';
+        let raw: string;
+        try { raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+        catch { throw new Error('Malformed JSON or invalid UTF-8 sidecar.'); }
+        entry.sidecar = parseSidecar(raw); entry.status = 'orphan'; entry.note = 'No selected JPEG matches this sidecar.';
       } else {
         entry.jpeg = await inspectJpeg(bytes); entry.status = entry.jpeg.repairable ? 'missing' : 'invalid'; entry.note = entry.jpeg.warning || 'No matching valid sidecar. Keep an unchanged copy or exclude this file.';
       }
@@ -145,7 +151,7 @@ export function initialDecisions(data: Inventory): Decisions {
   return Object.fromEntries(data.entries.map(e => [e.id, { action: e.status === 'ready' ? 'repair' : e.status === 'preserved' ? 'keep' : e.kind !== 'jpeg' || !e.jpeg ? 'skip' : 'pending', sidecarId: e.candidates.length === 1 ? e.candidates[0].id : null }]));
 }
 export function unresolved(data: Inventory, decisions: Decisions): number { return data.entries.filter(e => e.jpeg && (!decisions[e.id] || decisions[e.id].action === 'pending')).length; }
-export async function exportArchive(inputs: Input[], data: Inventory, decisions: Decisions, policy: Policy, progress: Progress = () => {}): Promise<{ zip: Uint8Array; manifest: Manifest }> {
+export async function exportArchive(inputs: Input[], data: Inventory, decisions: Decisions, policy: Policy, progress: Progress = () => {}, locale: Locale = 'en'): Promise<{ zip: Uint8Array; manifest: Manifest }> {
   if (!policy.acknowledged) throw new Error('Review and acknowledge the capture-time and GPS policy first.');
   if (!Number.isInteger(policy.offsetMinutes) || Math.abs(policy.offsetMinutes) > 840) throw new Error('Invalid UTC offset.');
   if (unresolved(data, decisions)) throw new Error('Resolve every JPEG review item before exporting.');
@@ -181,9 +187,9 @@ export async function exportArchive(inputs: Input[], data: Inventory, decisions:
     files[row.outputPath] = output; exported++;
   }
   const manifest: Manifest = { schemaVersion: 1, product: 'ArchiveGuard', createdAt: new Date().toISOString(), policy: { offsetMinutes: policy.offsetMinutes, gps: 'Sidecar GPS is not added; existing embedded GPS is preserved. Reports omit coordinates.', writeScope: 'DateTimeOriginal + OffsetTimeOriginal; remove SubSecTimeOriginal on repaired copies; all other readable EXIF retained and verified.' }, summary: { repaired: rows.filter(r => r.outcome === 'repaired').length, copied: rows.filter(r => r.outcome === 'copied').length, excluded: rows.filter(r => r.outcome === 'excluded').length }, limitations: ['JPEG only; 200 files / 64 MiB per batch, 12 MiB per JPEG, 1 MiB per JSON.', 'No ZIP input, video, HEIC, RAW, or XMP capture-date reconciliation.', 'No automatic camera timezone inference or capture-time fallback from upload time.', 'JPEG bytes outside EXIF are hashed and preserved; unrelated readable EXIF values are compared.', 'JPEG frame/scan structure is checked; preservation hashes do not prove complete image decodability.', 'MakerNotes, unknown EXIF tags and unsupported TIFF structures allow unchanged copies only where a supported JPEG structure is readable.', 'Reports include filenames, dates and hashes; handle them as private archive data.'], entries: rows };
-  const report = reports(manifest);
+  const report = reports(manifest, locale);
   files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2)); files['audit.csv'] = strToU8(report.csv); files['audit.html'] = strToU8(report.html);
-  files['README.txt'] = strToU8(`ArchiveGuard verified copy export\n${exported} JPEG copies. Original files were never written or deleted.\nReview audit.html and manifest.json for exclusions and provenance.\nRepaired file hashes normally differ from source hashes. payloadSha256 covers all JPEG bytes outside EXIF (including compressed image scans).\nDateTimeDigitized, modification time and XMP are not changed. Existing GPS remains in JPEG copies; sidecar GPS is never added.\n`);
+  files['README.txt'] = strToU8([t(locale, 'ArchiveGuard verified copy export'), t(locale, '{count} JPEG copies. Original files were never written or deleted.', { count: exported }), t(locale, 'Review audit.html and manifest.json for exclusions and provenance.'), t(locale, 'Repaired file hashes normally differ from source hashes. payloadSha256 covers all JPEG bytes outside EXIF.'), t(locale, 'DateTimeDigitized, modification time and XMP are unchanged. Existing GPS remains in JPEG copies; sidecar GPS is never added.')].join('\n') + '\n');
   progress(data.entries.length, data.entries.length, 'Packaging verified copies');
   return { zip: zipSync(files, { level: 0 }), manifest };
 }

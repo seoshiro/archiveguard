@@ -92,7 +92,8 @@ describe('audit reports', () => {
     expect(html).not.toContain('<script');
     expect(html).not.toContain('</small><script>');
     expect(html).toContain('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;injection');
-    expect(html).toContain('&lt;/small&gt;&lt;script&gt;alert(2)&lt;/script&gt;');
+    expect(html).not.toContain('alert(2)');
+    expect(html).toContain('This file could not be read safely.');
     expect(html).toContain('Content-Security-Policy');
     expect(html).toContain("default-src 'none'; style-src 'unsafe-inline'");
   });
@@ -105,8 +106,8 @@ describe('audit reports', () => {
     ];
     const report = reports(manifest(entries));
     expect(report.html).toContain('1 repaired');
-    expect(report.html).toContain('1 unchanged copies');
-    expect(report.html).toContain('1 excluded inputs');
+    expect(report.html).toContain('1 unchanged');
+    expect(report.html).toContain('1 audit-only or excluded inputs');
     expect(report.html).toContain('Verified by two readers');
     expect(report.html).toContain('Byte-identical copy');
     expect(report.html).toContain('Not exported');
@@ -124,5 +125,28 @@ describe('audit reports', () => {
     expect(csv.slice(1).every(cells => cells.join('') === '')).toBe(true);
     expect(report.html).toContain('<tbody></tbody>');
     expect(report.html).toContain('0 repaired');
+  });
+
+  it.each(['ru', 'kk'] as const)('localizes %s HTML while keeping machine CSV and private paths unchanged', locale => {
+    const entry = row({ sourcePath: 'family/әжеме арналған фото.jpg', reason: 'Reviewed sidecar capture instant; UTC offset 0 minutes. Only DateTimeOriginal and OffsetTimeOriginal written; SubSecTimeOriginal removed.' });
+    const data = manifest([entry]);
+    const english = reports(data), localized = reports(data, locale);
+    expect(localized.csv).toBe(english.csv);
+    expect(localized.html).toContain(`lang="${locale}"`);
+    expect(localized.html).not.toContain('<title>ArchiveGuard audit</title>');
+    expect(localized.html).not.toContain('Verified by two readers');
+    expect(localized.html).toContain(entry.sourcePath);
+    expect(localized.html).toContain(entry.sourceSha256);
+    expect(localized.html).toContain(entry.outputPath);
+    expect(localized.html).toContain(entry.captureAfter);
+    expect(localized.html).toContain('default-src');
+  });
+
+  it.each(['ru', 'kk'] as const)('does not surface arbitrary third-party error text in %s HTML', locale => {
+    const attack = '<script>parserSpecificText(12345)</script>';
+    const report = reports(manifest([row({ reason: attack })]), locale);
+    expect(report.html).not.toContain('parserSpecificText');
+    expect(report.html).not.toContain('<script>');
+    expect(readCsv(report.csv)[1][4]).toBe(attack);
   });
 });

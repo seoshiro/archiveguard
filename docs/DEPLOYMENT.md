@@ -32,4 +32,6 @@ The host logs ordinary visitor requests/IP addresses for security. No telemetry 
 
 Keep the original photo archive backed up independently. Outputs are separate ZIP downloads; the app stores no archive server-side or between reloads. Keep a copy of a downloaded audit if you need its provenance later.
 
+The locale preference is the only persisted app value. The app uses no service worker or offline cache. A tab opened before a deployment may refer to an obsolete hashed worker asset. If processing fails after an update, refresh and import the sample again; the localized error explains this recovery. The app preserves originals, but does not persist an interrupted review across reloads.
+
 For a code rollback, revert the unwanted source commit on `main` and let the same verified workflow redeploy. Do not force-push unrelated history. The repository contains source and reproducible synthetic demo fixtures; raw local reports, publication helpers, credentials, caches, dependencies, build output, and user archives are excluded.

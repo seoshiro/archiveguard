@@ -9,5 +9,7 @@ for (const name of names) {
   text += `${'='.repeat(72)}\n${name} ${pkg.version} — ${pkg.license}\n${'='.repeat(72)}\n`;
   for (const file of files) text += (await fs.readFile(path.join(root, file), 'utf8')) + '\n\n';
 }
+text += `${'='.repeat(72)}\nIBM Plex Sans — @ibm/plex-sans 1.1.0 — SIL Open Font License 1.1\n${'='.repeat(72)}\n`;
+text += await fs.readFile('public/fonts/IBMPlexSans-LICENSE.txt', 'utf8');
 await fs.writeFile('public/THIRD_PARTY_NOTICES.txt', text.replace(/\r\n/g, '\n').trimEnd() + '\n');
-console.log(`Collected unmodified license notices for ${names.length} dependencies.`);
+console.log(`Collected unmodified license notices for ${names.length} dependencies and IBM Plex Sans.`);

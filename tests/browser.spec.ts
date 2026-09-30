@@ -17,9 +17,9 @@ test('synthetic preflight, explicit conflicts, policy and verified ZIP download 
   page.on('pageerror', e => errors.push(e.message));
   page.on('request', request => { if ((!request.url().startsWith(origin + '/') || request.method() !== 'GET') && !request.url().startsWith('blob:') && !request.url().startsWith('data:')) outgoing.push(request.url()); });
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Your memories, accounted for.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Photo archive preflight' })).toBeVisible();
   await page.screenshot({ path: `${evidenceDir}/desktop-start.png`, fullPage: true });
-  await page.getByRole('button', { name: /Take a look around first/ }).click();
+  await page.getByTestId('demo-start').click();
   await expect(page.getByRole('heading', { name: 'Archive inventory' })).toBeVisible();
   await expect(page.getByRole('row')).toHaveCount(14);
   await expect(page.getByText('Cannot process', { exact: true })).toBeVisible();
@@ -87,7 +87,7 @@ test('production preview serves local assets with privacy headers and refuses wr
 test('new file selection cancels a delayed demo and keeps the newer real-file inventory', async ({ page }) => {
   await page.goto('./');
   await page.route('**/demo/demo.json', async route => { await new Promise(resolve => setTimeout(resolve, 1200)); await route.continue().catch(() => {}); });
-  await page.getByRole('button', { name: /Take a look around first/ }).click();
+  await page.getByTestId('demo-start').click();
   await page.getByLabel('Import JPEG and JSON files').setInputFiles([{ name: 'garden-walk.jpg', mimeType: 'image/jpeg', buffer: await fs.readFile('public/demo/garden-walk.jpg') }, { name: 'garden-walk.jpg.json', mimeType: 'application/json', buffer: await fs.readFile('public/demo/garden-walk.jpg.json') }]);
   await expect(page.getByRole('heading', { name: 'Archive inventory' })).toBeVisible();
   await expect(page.getByRole('row')).toHaveCount(3);
@@ -134,9 +134,10 @@ test('mobile layout, keyboard access, search and cancellation are usable', async
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Choose files', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.keyboard.press('Tab'); await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
   await page.keyboard.press('Tab'); await expect(page.getByRole('link', { name: 'ArchiveGuard home' })).toBeFocused();
   await page.screenshot({ path: `${evidenceDir}/mobile-start.png`, fullPage: true });
-  await page.getByRole('button', { name: /Take a look around first/ }).click();
+  await page.getByTestId('demo-start').click();
   await expect(page.getByRole('heading', { name: 'Archive inventory' })).toBeVisible();
   await page.getByLabel('Find a file').fill('summer');
   await expect(page.getByRole('row')).toHaveCount(3);
@@ -144,7 +145,7 @@ test('mobile layout, keyboard access, search and cancellation are usable', async
   await page.screenshot({ path: `${evidenceDir}/mobile-review.png`, fullPage: true });
   await page.getByRole('button', { name: 'New sample' }).click();
   await page.route('**/demo/demo.json', async route => { await new Promise(resolve => setTimeout(resolve, 1200)); await route.continue().catch(() => {}); });
-  await page.getByRole('button', { name: /Take a look around first/ }).click();
+  await page.getByTestId('demo-start').click();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Choose files', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Archive inventory' })).toHaveCount(0);
@@ -152,14 +153,14 @@ test('mobile layout, keyboard access, search and cancellation are usable', async
 
 test('public release metadata, privacy help, and relative assets stay usable', async ({ page, request }) => {
   const response = await request.get('./version.json'); expect(response.status()).toBe(200);
-  const version = await response.json(); expect(version.product).toBe('ArchiveGuard'); expect(version.version).toBe('1.0.0');
+  const version = await response.json(); expect(version.product).toBe('ArchiveGuard'); expect(version.version).toBe('1.1.0');
   if (process.env.ARCHIVEGUARD_EXPECTED_COMMIT) expect(version.commit).toBe(process.env.ARCHIVEGUARD_EXPECTED_COMMIT);
   await page.goto('./');
-  await expect(page.getByRole('link', { name: 'Privacy, limits & support' })).toBeVisible();
+  await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Privacy, limits & support' })).toBeVisible();
   await page.goto(new URL('privacy.html', baseURL).href);
   await expect(page.getByRole('heading', { name: 'Your archive stays on your device.' })).toBeVisible();
-  await page.getByRole('link', { name: /Back to ArchiveGuard/ }).click();
-  await expect(page.getByRole('heading', { name: 'Your memories, accounted for.' })).toBeVisible();
+  await page.getByRole('main').getByRole('link', { name: /Back to ArchiveGuard/ }).click();
+  await expect(page.getByRole('heading', { name: 'Photo archive preflight' })).toBeVisible();
 });
 
 test('a browser without local worker support gets a useful error and no partial export', async ({ page }) => {

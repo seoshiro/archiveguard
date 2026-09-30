@@ -4,7 +4,7 @@ Review a selected photo archive before moving it. Compare JPEG capture metadata 
 
 **[Open ArchiveGuard](https://seoshiro.github.io/archiveguard/)** · [Privacy and limits](https://seoshiro.github.io/archiveguard/privacy.html) · [Validation](docs/VALIDATION.md)
 
-![ArchiveGuard import screen with original synthetic artwork](docs/screenshots/desktop-start.png)
+![ArchiveGuard sample import screen](docs/screenshots/desktop-start.png)
 
 ## Use it
 
@@ -18,6 +18,10 @@ Review a selected photo archive before moving it. Compare JPEG capture metadata 
 
 Original files are never opened for writing, overwritten, deleted, or deduplicated. Cancel stops the active worker or demo download. No output is offered until the entire export passes verification. Changing any decision or policy revokes the previous download.
 
+The complete interface and privacy help are available in **English, Русский, Қазақша**. Change language at any point without losing imported files or decisions. Only the language preference is saved locally; blocked browser storage remains usable. Human-readable HTML/README reports use the language selected when preparing the ZIP. JSON/CSV keys and canonical values remain stable. Switching language preserves a prepared package and displays its report language; prepare again to change it.
+
+Browser Back/Forward moves between workflow steps without replacing the active sample. Privacy help opens separately. Reloading clears archive data and decisions.
+
 ## What verification means
 
 Repair writes `DateTimeOriginal` and `OffsetTimeOriginal` into a copy and removes `SubSecTimeOriginal`, because sidecar capture instants have whole-second precision. It leaves supported unrelated EXIF values unchanged, including digitized and modification dates. XMP dates and filesystem timestamps are not reconciled.
@@ -30,7 +34,7 @@ Frame and initial scan validation is not a complete JPEG decoder or corruption d
 
 ## Privacy
 
-Photos, sidecar contents, filenames, dates, and GPS stay in your browser's memory. There are no uploads, analytics, remote fonts, external AI calls, or archive storage. Closing or reloading the tab clears the session. Synthetic demo assets are served from the app's own origin. GitHub Pages may log ordinary visitor requests/IP addresses for hosting security; those requests contain no selected archive data.
+Photos, sidecar contents, filenames, dates, and GPS stay in your browser's memory. There are no uploads, analytics, remote fonts, external AI calls, or archive storage. Closing or reloading the tab clears the session. A single language code is the only persisted app preference. Synthetic demo assets and licensed fonts are served from the app's own origin. GitHub Pages may log ordinary visitor requests/IP addresses for hosting security; those requests contain no selected archive data.
 
 Sidecar GPS is never added. Existing embedded GPS remains in copied JPEGs, with an explicit export acknowledgement. Reports omit coordinates but contain filenames, dates, hashes, and decisions. Keep both downloaded photos and audit reports private when appropriate.
 
@@ -75,8 +79,12 @@ Browser tests use installed Chrome by default, in isolated temporary profiles. O
 
 ## Architecture and release
 
-React manages a transient inventory, explicit decisions, policy, cancellation, and the download URL. A Web Worker processes bounded files. `src/engine.ts` builds deterministic matches and transactional exports; `src/jpeg.ts` validates JPEG/TIFF bounds and corroborates metadata writes; `src/reports.ts` escapes HTML and neutralizes CSV formulas. fflate creates ZIP output. No backend or arbitrary command execution is part of the app.
+React manages a transient inventory, explicit decisions, policy, cancellation, and the download URL. A Web Worker processes bounded files. `src/engine.ts` builds deterministic matches and transactional exports; `src/jpeg.ts` validates JPEG/TIFF bounds and corroborates metadata writes; `src/reports.ts` escapes HTML and neutralizes CSV formulas; `src/i18n.ts` provides complete locale catalogs, safe error translation, plurals and UTC date formatting. fflate creates ZIP output. No backend or arbitrary command execution is part of the app.
 
 `scripts/create-demo.mjs` regenerates original synthetic fixtures using jpeg-js. The demo covers intact metadata, an exact repair match, a date conflict, a missing offset, missing sidecars, duplicates, malformed JSON, and an unsupported video placeholder. All committed images and tests are synthetic.
 
 The [release workflow](.github/workflows/release.yml) verifies source before deploying only `dist/` to GitHub Pages. `version.json` records the exact commit. The free release uses standard public-repository Actions runners, one-day deployment artifact retention, and no billing activation. See [deployment, hosting limits, and rollback](docs/DEPLOYMENT.md), [third-party licenses](THIRD_PARTY.md), and [security reporting](SECURITY.md). GitHub Pages hosting rules apply; a later commercial SaaS offering needs a suitable host.
+
+Version 1.1 adds the three locales, a quieter utility layout with self-hosted IBM Plex Sans and functional Lucide icons, and fixes reproduced during [exploratory QA](docs/QA.md). [Design choices and asset provenance](docs/DESIGN.md) document the free licenses. Validation includes seven viewport widths in both orientations and 200% CSS zoom. Chromium emulation is not a test on physical phones or Safari.
+
+![Russian mobile interface using only a synthetic sample](docs/screenshots/mobile-start.png)
